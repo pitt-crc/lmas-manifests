@@ -32,7 +32,6 @@ The following tutorial demonstrates how to deploy an arbitrary hugging face tran
 model on the Triton Inference Server using Triton's [Python backend](https://github.com/triton-inference-server/python_backend).
 For the purposes of this example, the following transformer models will be deployed:
 - [tiiuae/falcon-7b](https://huggingface.co/tiiuae/falcon-7b)
-- [adept/persimmon-8b-base](https://huggingface.co/adept/persimmon-8b-base)
 - [meta-llama/Llama-2-7b-hf](https://huggingface.co/meta-llama/Llama-2-7b)
 
 These models were selected because of their popularity and consistent response quality.
@@ -42,23 +41,13 @@ sufficient infrastructure.
 *NOTE*: The tutorial is intended to be a reference example only. It may not be tuned for
 optimal performance.
 
-*NOTE*: Llama 2 models are not specifically mentioned in the steps below, but
-can be run if `tiiuae/falcon-7b` is replaced with `meta-llama/Llama-2-7b-hf`,
-and `falcon7b` folder is replaced by `llama7b` folder.
-
 ## Step 1: Create a Model Repository
 
 The first step is to create a model repository containing the models we want the Triton
-Inference Server to load and use for inference processing. To accomplish this, create a
-directory called `model_repository` and copy the `falcon7b` model folder into it:
+Inference Server to load and use for inference processing.
 
-```
-mkdir -p model_repository
-cp -r falcon7b/ model_repository/
-```
-
-The `falcon7b/` folder we copied is organized in the way Triton expects and contains
-two important files needed to serve models in Triton:
+The model folders `model_repository/falcon7b/` and `model_repository/llama7b/` are organized in the way Triton expects 
+and contain two important files needed to serve models in Triton:
 - **config.pbtxt** - Outlines the backend to use, model input/output details, and custom
 parameters to use for execution. More information on the full range of model configuration
 properties Triton supports can be found [here](https://docs.nvidia.com/deeplearning/triton-inference-server/user-guide/docs/user_guide/model_configuration.html).
@@ -125,37 +114,6 @@ In our testing, the server returned the following result (formatted for legibili
 }
 ```
 
-## Step 5: Host Multiple Models in Triton
-
-So far in this tutorial, we have only loaded a single model. However, Triton is capable
-of hosting many models, simultaneously. To accomplish this, first ensure you have
-exited the docker container by invoking `Ctrl+C` and waiting for the container to exit.
-
-Next copy the remaining model provided into the model repository:
-```
-cp -r persimmon8b/ model_repository/
-```
-*NOTE*: The combined size of these two models is large. If your current hardware cannot
-support hosting both models simultaneously, consider loading a smaller model, such as
-[opt-125m](https://huggingface.co/facebook/opt-125m), by creating a folder for it
-using the templates provided and copying it into `model_repository`.
-
-Again, launch the server by invoking the `docker run` command from above and wait for confirmation
-that the server has launched successfully.
-
-Query the server making sure to change the host address for each model:
-```bash
-curl -X POST localhost:8000/v2/models/falcon7b/infer -d '{"inputs": [{"name":"text_input","datatype":"BYTES","shape":[1],"data":["How can you be"]}]}'
-curl -X POST localhost:8000/v2/models/persimmon8b/infer -d '{"inputs": [{"name":"text_input","datatype":"BYTES","shape":[1],"data":["Where is the nearest"]}]}'
-```
-In our testing, these queries returned the following parsed results:
-```bash
-# falcon7b
-"How can you be sure that you are getting the best deal on your car"
-
-# persimmon8b
-"Where is the nearest starbucks?"
-```
 Beginning in the 23.10 release, users can now interact with large language models (LLMs) hosted
 by Triton in a simplified fashion by using Triton's generate endpoint:
 
@@ -175,7 +133,6 @@ RUN pip install git+https://github.com/huggingface/transformers.git
 Using this technique you should be able to serve any transformer models supported by
 hugging face with Triton.
 
-
 # Next Steps
 The following sections expand on the base tutorial and provide guidance for future sandboxing.
 
@@ -183,7 +140,7 @@ The following sections expand on the base tutorial and provide guidance for futu
 In the previous steps, we downloaded the falcon-7b model from hugging face when we
 launched the Triton server. We can avoid this lengthy download process in subsequent runs
 by loading cached models into Triton. By default, the provided `model.py` files will cache
-the falcon and persimmon models in their respective directories within the `model_repository`
+the falcon and llama models in their respective directories within the `model_repository`
 folder. This is accomplished by setting the `TRANSFORMERS_CACHE` environmental variable.
 To set this environmental variable for an abtitrary model, include the following lines in
 your `model.py` **before** importing the 'transformers' module, making sure to replace
@@ -214,7 +171,7 @@ needs. Triton currently has two options for deployment analysis:
 - [Model Analyzer](https://docs.nvidia.com/deeplearning/triton-inference-server/user-guide/docs/user_guide/model_analyzer.html) A GPU memory and compute utilization optimizer.
 
 ### Performance Analyzer
-To use the performance analyzer, please remove the persimmon8b model from `model_repository` and restart
+To use the performance analyzer, please remove the llama7b model from `model_repository` and restart
 the Triton server using the `docker run` command from above.
 
 Once Triton launches successfully, start a Triton SDK container by running the following in a separate window:
