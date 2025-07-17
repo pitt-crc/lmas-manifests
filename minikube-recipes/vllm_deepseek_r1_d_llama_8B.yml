@@ -1,0 +1,88 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: vllm-deepseek-r1-d-llama3-8b
+  labels:
+    app: vllm-deepseek-r1-d-llama3-8b
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: vllm-deepseek-r1-d-llama3-8b
+      model: deepseek-r1-d-llama3-8b
+  template:
+    metadata:
+      labels:
+        app: vllm-deepseek-r1-d-llama3-8b
+        model: deepseek-r1-d-llama3-8b
+    spec:
+      containers:
+      - name: vllm-deepseek-r1-d-llama3-8b
+        image: vllm/vllm-openai:latest
+        resources:
+          limits:
+            cpu: "16"
+            memory: "128Gi"
+            nvidia.com/gpu: 1
+          requests:
+            cpu: "15"
+            memory: "120Gi"
+            nvidia.com/gpu: 1
+        ports:
+        - containerPort: 8000
+        env:
+        - name: MODEL
+          value: "deepseek-ai/DeepSeek-R1-Distill-Llama-8B"
+        - name: TRUST_REMOTE_CODE
+          value: "true"
+        - name: HF_HOME
+          value: "/vllm_recipes/huggingface"
+        - name: HUGGING_FACE_HUB_TOKEN
+          valueFrom:
+            secretKeyRef:
+              name: vllm-secrets
+              key: huggingface-token
+        - name: API_KEY
+          valueFrom:
+            secretKeyRef:
+              name: vllm-secrets
+              key: api-key
+        - name: NVIDIA_VISIBLE_DEVICES
+          value: "1"
+        - name: NVIDIA_DRIVER_CAPABILITIES
+          value: "compute,utility"
+        command: ["python3", "-m", "vllm.entrypoints.openai.api_server"]
+        args:
+        - "--host"
+        - "0.0.0.0"
+        - "--port"
+        - "8000"
+        - "--model"
+        - "$(MODEL)"
+        - "--trust-remote-code"
+        - "--chat-template"
+        - "/vllm_recipes/deepseek_r1_d_llama_8B.tmpl"
+        - "--api-key"
+        - "$(API_KEY)"
+        - "--download-dir"
+        - "$(HF_HOME)"
+        volumeMounts:
+        - name: recipes-volume
+          mountPath: /vllm_recipes
+        livenessProbe:
+          httpGet:
+            path: /health
+            port: 8000
+          initialDelaySeconds: 60
+          periodSeconds: 10
+        readinessProbe:
+          httpGet:
+            path: /health
+            port: 8000
+          initialDelaySeconds: 30
+          periodSeconds: 5
+      volumes:
+      - name: recipes-volume
+        hostPath:
+          path: /vllm_recipes
+          type: Directory
