@@ -1,0 +1,14 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: vllm-llama3-8b-service-nokey
+spec:
+  selector:
+    app: vllm
+    model: llama3-8b-nokey
+  ports:
+    - protocol: TCP
+      port: 8000
+      targetPort: 8000
+      nodePort: 30303  # External port (30000-32767 range)
+  type: NodePort

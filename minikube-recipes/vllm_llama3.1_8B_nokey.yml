@@ -1,0 +1,83 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: vllm-llama3-8b-nokey
+  labels:
+    app: vllm-nokey
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: vllm-nokey
+      model: llama3-8b-nokey
+  template:
+    metadata:
+      labels:
+        app: vllm-nokey
+        model: llama3-8b-nokey
+    spec:
+      containers:
+      - name: vllm
+        image: vllm/vllm-openai:latest
+        resources:
+          limits:
+            cpu: "16"
+            memory: "128Gi"
+            nvidia.com/gpu: 1
+          requests:
+            cpu: "15"
+            memory: "120Gi"
+            nvidia.com/gpu: 1
+        ports:
+        - containerPort: 8000
+        env:
+        - name: MODEL
+          value: "meta-llama/Llama-3.1-8B-Instruct"
+        - name: HF_HOME
+          value: "/vllm_recipes/huggingface"
+        - name: HUGGING_FACE_HUB_TOKEN
+          valueFrom:
+            secretKeyRef:
+              name: vllm-secrets
+              key: huggingface-token
+        - name: API_KEY
+          valueFrom:
+            secretKeyRef:
+              name: vllm-secrets
+              key: api-key
+        - name: NVIDIA_VISIBLE_DEVICES
+          value: "2"
+        - name: NVIDIA_DRIVER_CAPABILITIES
+          value: "compute,utility"
+        command: ["python3", "-m", "vllm.entrypoints.openai.api_server"]
+        args:
+        - "--host"
+        - "0.0.0.0"
+        - "--port"
+        - "8000"
+        - "--model"
+        - "$(MODEL)"
+        - "--chat-template"
+        - "/vllm_recipes/llama-3.1-chat-template.tmpl"
+        - "--download-dir"
+        - "$(HF_HOME)"
+        volumeMounts:
+        - name: recipes-volume
+          mountPath: /vllm_recipes
+        livenessProbe:
+          httpGet:
+            path: /health
+            port: 8000
+          initialDelaySeconds: 60
+          periodSeconds: 10
+        readinessProbe:
+          httpGet:
+            path: /health
+            port: 8000
+          initialDelaySeconds: 30
+          periodSeconds: 5
+      volumes:
+      - name: recipes-volume
+        hostPath:
+          path: /vllm_recipes
+          type: Directory
