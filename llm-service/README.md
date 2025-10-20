@@ -17,7 +17,7 @@ minikube addons enable metrics-server # Supplies resource metrics for monitoring
 Apply the manifest project manifest files.
 
 ```bash
-kubectl apply -f manifest/**/*.yml 
+kubectl apply -f manifest/*.yml 
 ```
 
 Monitor the deployed resources from the kubernetes dashboard.
