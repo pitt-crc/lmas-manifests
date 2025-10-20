@@ -1,0 +1,72 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: llm-api-dep
+  labels:
+    app: llm-service
+    component: api
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: llm-service
+      component: api
+  template:
+    metadata:
+      labels:
+        app: llm-service
+        component: api
+    spec:
+      containers:
+        - name: llm-api
+          image: ghcr.io/pitt-crc/llm-api:0.0.2
+          imagePullPolicy: IfNotPresent
+          args: [ "runserver", "--host", "0.0.0.0", "--port", "8080" ]
+          ports:
+            - containerPort: 8080
+          envFrom:
+            - secretRef:
+                name: postgres-secret
+          env:
+            - name: LLM_DB_URL
+              value: "postgresql+asyncpg://$(POSTGRES_USER):$(POSTGRES_PASSWORD)@postgres-svc/$(POSTGRES_DB)"
+            - name: LLM_LDAP_URL
+              value: "ldap://openldap:1389"
+            - name: LLM_LDAP_AUTH_DN
+              value: "uid={username},ou=users,dc=example,dc=org"
+
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: postgres-dep
+  labels:
+    app: llm-service
+    component: postgres
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: llm-service
+      component: postgres
+  template:
+    metadata:
+      labels:
+        app: llm-service
+        component: postgres
+    spec:
+      containers:
+        - name: postgres
+          image: postgres:18
+          ports:
+            - containerPort: 5432
+          envFrom:
+            - secretRef:
+                name: postgres-secret
+          volumeMounts:
+            - name: postgres-storage
+              mountPath: /var/lib/postgresql/
+      volumes:
+        - name: postgres-storage
+          persistentVolumeClaim:
+            claimName: postgres-pvc
